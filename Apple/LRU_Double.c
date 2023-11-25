@@ -1,217 +1,238 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
-// A C program to show implementation of LRU cache
-#include <stdio.h>
-#include <stdlib.h>
- 
-// A Queue Node (Queue is implemented using Doubly Linked
-// List)
-typedef struct QNode {
-    struct QNode *prev, *next;
-    unsigned
-        pageNumber; // the page number stored in this QNode
-} QNode;
- 
-// A Queue (A FIFO collection of Queue Nodes)
-typedef struct Queue {
-    unsigned count; // Number of filled frames
-    unsigned numberOfFrames; // total number of frames
-    QNode *front, *rear;
-} Queue;
- 
-// A hash (Collection of pointers to Queue Nodes)
-typedef struct Hash {
-    int capacity; // how many pages can be there
-    QNode** array; // an array of queue nodes
-} Hash;
- 
-// A utility function to create a new Queue Node. The queue
-// Node will store the given 'pageNumber'
-QNode* newQNode(unsigned pageNumber)
-{
-    // Allocate memory and assign 'pageNumber'
-    QNode* temp = (QNode*)malloc(sizeof(QNode));
-    temp->pageNumber = pageNumber;
- 
-    // Initialize prev and next as NULL
-    temp->prev = temp->next = NULL;
- 
-    return temp;
+#define MAX_KEY (10000)
+
+typedef struct lRUpage {
+    int value;
+    int key;
+    struct lRUpage *next, *prev;
+} LRUPage;
+
+typedef struct lRUhead {
+    int capacity;
+    int used_cnt;
+    LRUPage *front, *rear;
+} LRUCache;
+
+LRUPage **gLRUHash;
+
+void lRUCacheFree(LRUCache* obj) {
+    LRUPage *page_holder = obj->front;
+    LRUPage *page_tmp;
+
+    /* Free LRUPage */
+    while (page_holder != NULL) {
+        page_tmp = page_holder;
+        page_holder = page_holder->next;
+        free(page_tmp);
+    }
+
+    /* Free LRUCache */
+    free(obj);
 }
- 
-// A utility function to create an empty Queue.
-// The queue can have at most 'numberOfFrames' nodes
-Queue* createQueue(int numberOfFrames)
-{
-    Queue* queue = (Queue*)malloc(sizeof(Queue));
- 
-    // The queue is empty
-    queue->count = 0;
-    queue->front = queue->rear = NULL;
- 
-    // Number of frames that can be stored in memory
-    queue->numberOfFrames = numberOfFrames;
- 
-    return queue;
+
+void lRUHashCreate (void) {
+    int index = 0;
+    gLRUHash = (LRUPage **)malloc(sizeof(LRUPage *) * MAX_KEY);
+    
+    for (index = 0; index < MAX_KEY; index++) {
+        gLRUHash[index] = NULL;
+    }
 }
- 
-// A utility function to create an empty Hash of given
-// capacity
-Hash* createHash(int capacity)
-{
-    // Allocate memory for hash
-    Hash* hash = (Hash*)malloc(sizeof(Hash));
-    hash->capacity = capacity;
- 
-    // Create an array of pointers for referring queue nodes
-    hash->array
-        = (QNode**)malloc(hash->capacity * sizeof(QNode*));
- 
-    // Initialize all hash entries as empty
-    int i;
-    for (i = 0; i < hash->capacity; ++i)
-        hash->array[i] = NULL;
- 
-    return hash;
+
+LRUPage* lRUPageCreate (void) {
+    LRUPage *page = (LRUPage *)malloc(sizeof(LRUPage));
+    page->prev = page->next = NULL;
+    page->key = 0;
+    page->value = 0;
+    return page;
 }
- 
-// A function to check if there is slot available in memory
-int AreAllFramesFull(Queue* queue)
-{
-    return queue->count == queue->numberOfFrames;
+
+bool is_lRUCache_full (LRUCache * cache) {
+    return (cache->capacity == cache->used_cnt);
 }
- 
-// A utility function to check if queue is empty
-int isQueueEmpty(Queue* queue)
-{
-    return queue->rear == NULL;
+
+bool is_lRUCache_empty (LRUCache * cache) {
+    return (cache->used_cnt == 0);
 }
- 
-// A utility function to delete a frame from queue
-void deQueue(Queue* queue)
-{
-    if (isQueueEmpty(queue))
+
+void lRUCacheArrange(LRUCache *obj, LRUPage *page) {
+    /* page is already in the first or there is only one page in obj */
+    if ((obj->front == page) || (obj->used_cnt == 1))
         return;
- 
-    // If this is the only node in list, then change front
-    if (queue->front == queue->rear)
-        queue->front = NULL;
- 
-    // Change rear and remove the previous rear
-    QNode* temp = queue->rear;
-    queue->rear = queue->rear->prev;
- 
-    if (queue->rear)
-        queue->rear->next = NULL;
- 
-    free(temp);
- 
-    // decrement the number of full frames by 1
-    queue->count--;
-}
- 
-// A function to add a page with given 'pageNumber' to both
-// queue and hash
-void Enqueue(Queue* queue, Hash* hash, unsigned pageNumber)
-{
-    // If all frames are full, remove the page at the rear
-    if (AreAllFramesFull(queue)) {
-        // remove page from hash
-        hash->array[queue->rear->pageNumber] = NULL;
-        deQueue(queue);
+
+    /* Detach: Page is in the rear of obj */
+    if (obj->rear == page) {
+        page->prev->next = NULL;
+        obj->rear = page->prev;
     }
- 
-    // Create a new node with given page number,
-    // And add the new node to the front of queue
-    QNode* temp = newQNode(pageNumber);
-    temp->next = queue->front;
- 
-    // If queue is empty, change both front and rear
-    // pointers
-    if (isQueueEmpty(queue))
-        queue->rear = queue->front = temp;
-    else // Else change the front
-    {
-        queue->front->prev = temp;
-        queue->front = temp;
+    /* Detach: page is in the middle of obj */
+    else {
+        page->prev->next = page->next;
+        page->next->prev = page->prev;
     }
- 
-    // Add page entry to hash also
-    hash->array[pageNumber] = temp;
- 
-    // increment number of full frames
-    queue->count++;
+    
+    /* Attach: Add page at the first of obj */
+    page->next = obj->front;
+    obj->front->prev = page;
+    obj->front = page;
+    page->prev = NULL;
 }
- 
-// This function is called when a page with given
-// 'pageNumber' is referenced from cache (or memory). There
-// are two cases:
-// 1. Frame is not there in memory, we bring it in memory
-// and add to the front of queue
-// 2. Frame is there in memory, we move the frame to front
-// of queue
-void ReferencePage(Queue* queue, Hash* hash,
-                   unsigned pageNumber)
-{
-    QNode* reqPage = hash->array[pageNumber];
- 
-    // the page is not in cache, bring it
-    if (reqPage == NULL)
-        Enqueue(queue, hash, pageNumber);
- 
-    // page is there and not at front, change pointer
-    else if (reqPage != queue->front) {
-        // Unlink rquested page from its current location
-        // in queue.
-        reqPage->prev->next = reqPage->next;
-        if (reqPage->next)
-            reqPage->next->prev = reqPage->prev;
- 
-        // If the requested page is rear, then change rear
-        // as this node will be moved to front
-        if (reqPage == queue->rear) {
-            queue->rear = reqPage->prev;
-            queue->rear->next = NULL;
+
+int lRUCacheGet(LRUCache* obj, int key) {
+    LRUPage *page_temp;
+    /* Cache and Hash status pre-checking */
+    if ((is_lRUCache_empty(obj)) || (gLRUHash[key] == NULL)) return -1;
+
+    page_temp = gLRUHash[key];
+    
+    lRUCacheArrange(obj, page_temp);
+
+    return gLRUHash[key]->value;
+}
+
+void lRUCachePut(LRUCache* obj, int key, int value) {
+    LRUPage *page_tmp;
+
+    /* update existing page with new value */
+    if (gLRUHash[key] != NULL) {
+        gLRUHash[key]->value = value;
+        lRUCacheArrange(obj, gLRUHash[key]);
+    }
+    else {
+        page_tmp = lRUPageCreate();
+        page_tmp->key = key;
+        page_tmp->value = value;
+
+        /* 1st: Check LRUCache if it is empty */
+        if (is_lRUCache_empty(obj)) {
+            obj->front = obj->rear = page_tmp;
+            obj->used_cnt += 1;
+            gLRUHash[key] = page_tmp;
+            return;
         }
- 
-        // Put the requested page before current front
-        reqPage->next = queue->front;
-        reqPage->prev = NULL;
- 
-        // Change prev of current front
-        reqPage->next->prev = reqPage;
- 
-        // Change front to the requested page
-        queue->front = reqPage;
+        /* 2nd: Check LRUCache if it is full */
+        else if(is_lRUCache_full(obj)) {
+            LRUPage *remove_temp = obj->rear;
+
+            if (obj->used_cnt == 1)
+                obj->front = obj->rear = page_tmp;
+            else {
+                page_tmp->prev = obj->rear->prev;
+                obj->rear = page_tmp;
+            }
+            
+            gLRUHash[page_tmp->key] = page_tmp;
+            gLRUHash[remove_temp->key] = NULL;
+            free(remove_temp);
+            lRUCacheArrange(obj, page_tmp);
+            return;
+        }
+        /* 3rd: Add new page at the first of obj */
+        else {
+            page_tmp->next = obj->front;
+            obj->front->prev = page_tmp;
+            obj->front = page_tmp;
+
+            gLRUHash[page_tmp->key] = page_tmp;
+            obj->used_cnt += 1;
+        }
     }
 }
- 
-// Driver code
-int main()
-{
-    // Let cache can hold 4 pages
-    Queue* q = createQueue(4);
- 
-    // Let 10 different pages can be requested (pages to be
-    // referenced are numbered from 0 to 9
-    Hash* hash = createHash(10);
- 
-    // Let us refer pages 1, 2, 3, 1, 4, 5
-    ReferencePage(q, hash, 1);
-    ReferencePage(q, hash, 2);
-    ReferencePage(q, hash, 3);
-    ReferencePage(q, hash, 1);
-    ReferencePage(q, hash, 4);
-    ReferencePage(q, hash, 5);
- 
-    // Let us print cache frames after the above referenced
-    // pages
-    printf("%d ", q->front->pageNumber);
-    printf("%d ", q->front->next->pageNumber);
-    printf("%d ", q->front->next->next->pageNumber);
-    printf("%d ", q->front->next->next->next->pageNumber);
- 
+
+LRUCache* lRUCacheCreate(int capacity) {
+    int index = 0;
+    LRUCache *cache_tmp = (LRUCache *)malloc(sizeof(LRUCache));
+
+    cache_tmp->front = cache_tmp->rear = NULL;
+
+    cache_tmp->capacity = capacity;
+    cache_tmp->used_cnt = 0;
+
+    /* Create Hash Table */
+    lRUHashCreate();
+
+    return cache_tmp;
+}
+
+/*
+["LRUCache","put","put","put","put","get","get"]
+[[2],[2,1],[1,1],[2,3],[4,1],[1],[2]]
+*/
+#if 0
+int main (void) {
+    LRUCache *obj = lRUCacheCreate(2);
+    LRUPage *temp;
+    /* Put Values */
+    lRUCachePut(obj, 2, 1);
+    lRUCachePut(obj, 1, 1);
+        temp = obj->front;
+    while (temp != NULL) {
+        printf("key(%d), value(%d)\n", temp->key, temp->value);
+        temp = temp->next;
+    }
+    lRUCachePut(obj, 2, 3);
+        temp = obj->front;
+    while (temp != NULL) {
+        printf("key(%d), value(%d)\n", temp->key, temp->value);
+        temp = temp->next;
+    }
+    lRUCachePut(obj, 4, 1);
+
+    temp = obj->front;
+    while (temp != NULL) {
+        printf("key(%d), value(%d)\n", temp->key, temp->value);
+        temp = temp->next;
+    }
+
+
+    printf("Key 1, Value %d \n", lRUCacheGet(obj, 1));
+    printf("Key 2, Value %d \n", lRUCacheGet(obj, 2));
+
+    lRUCacheFree(obj);
     return 0;
 }
+
+#else
+int main (void) {
+    LRUCache *obj = lRUCacheCreate(3);
+    LRUPage *temp;
+    /* Put Values */
+    lRUCachePut(obj, 1, 1);
+    lRUCachePut(obj, 2, 2);
+    
+    /* Get Value */
+    printf("Key 1, Value %d \n", lRUCacheGet(obj, 1));
+
+    /* Put Value */
+    lRUCachePut(obj, 3, 3);
+
+    /* Get Value */
+    printf("Key 2, Value %d \n", lRUCacheGet(obj, 2));
+    temp = obj->front;
+    while (temp != NULL) {
+        printf("value(%d)\n", temp->value);
+        temp = temp->next;
+    }
+
+    /* Put Value */
+   lRUCachePut(obj, 4, 4);
+
+    temp = obj->front;
+    while (temp != NULL) {
+        printf("value(%d)\n", temp->value);
+        temp = temp->next;
+    }
+
+    /* Get Values */
+    printf("Key 1, Value %d \n", lRUCacheGet(obj, 1));
+    printf("Key 3, Value %d \n", lRUCacheGet(obj, 3));
+    printf("Key 4, Value %d \n", lRUCacheGet(obj, 4));
+
+    lRUCacheFree(obj);
+    return 0;
+}
+#endif
