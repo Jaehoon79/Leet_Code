@@ -37,7 +37,6 @@ int peek()
     // Check for the element with
     // highest priority
     for (int i = 0; i <= size; i++) {
- 
         // If priority is same choose
         // the element with the
         // highest value

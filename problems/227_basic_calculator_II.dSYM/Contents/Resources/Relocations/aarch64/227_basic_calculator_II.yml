@@ -1,0 +1,8 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/jaehoonkim/Desktop/Playground_kimc/Leet_Code/Apple_Amazon/227_basic_calculator_II'
+relocations:
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _calculate, symObjAddr: 0x0, symBinAddr: 0x100003B28, symSize: 0x2E0 }
+  - { offsetInCU: 0x4D, offset: 0x4D, size: 0x8, addend: 0x0, symName: _calculate, symObjAddr: 0x0, symBinAddr: 0x100003B28, symSize: 0x2E0 }
+  - { offsetInCU: 0xD7, offset: 0xD7, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x2E0, symBinAddr: 0x100003E08, symSize: 0xD8 }
+...

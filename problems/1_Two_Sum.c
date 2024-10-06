@@ -36,7 +36,6 @@ int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
 
     return ret;
 }
-#endif
 
 int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
     int *ret = (int *)malloc(2 * sizeof(int));
@@ -56,6 +55,103 @@ int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
     }
 
     return ret;
+}
+#endif
+
+
+int comfunc (const void *a, const void *b) {
+    return (*(int *)a - *(int *)b);
+}
+
+void swap(int *nums, int i, int largest) {
+    nums[i] = nums[i]^nums[largest];
+    nums[largest] = nums[i]^nums[largest];
+    nums[i] = nums[i]^nums[largest];
+}
+#if 0
+void heapify(int *nums, int numsSize, int i) {
+  // Initialize largest as root
+    int largest = i;
+
+    // left = 2*i + 1
+    int l = 2 * i + 1;
+
+    // right = 2*i + 2
+    int r = 2 * i + 2;
+
+    // If left child is larger than root
+    if (l < numsSize && nums[l] > nums[largest])
+        largest = l;
+
+    // If right child is larger than largest
+    // so far
+    if (r < numsSize && nums[r] > nums[largest])
+        largest = r;
+
+    // If largest is not root
+    if (largest != i) {
+        swap(nums, i, largest);
+        // Recursively heapify the affected
+        // sub-tree
+        heapify(nums, numsSize, largest);
+    }
+}
+
+void heapSort(int *nums, int numsSize) {
+ // Build heap (rearrange array)
+    for (int i = numsSize / 2 - 1; i >= 0; i--)
+        heapify(nums, numsSize, i);
+
+    // One by one extract an element
+    // from heap
+    for (int i = numsSize - 1; i > 0; i--) {
+        // Move current root to end
+        swap(nums, 0, i);
+        // call max heapify on the reduced heap
+        heapify(nums, i, 0);
+    }
+}
+#endif
+
+
+void heapify(int *nums, int numsSize, int index) {
+    int max = index;
+    int l = index * 2 + 1;
+    int r = index * 2 + 2;
+
+    if (numsSize > l && nums[l] > nums[max])
+        max = l;
+    if (numsSize > r && nums[r] > nums[max])
+        max = r;
+
+    if (max != index) {
+        swap(nums, max, index);
+        heapify(nums, numsSize, max);
+    }
+}
+
+void heapSort(int *nums, int numsSize) {
+    for (int i = (numsSize - 1)/2; i >= 0; i--) {
+        heapify(nums, numsSize, i);
+    }
+    for (int i = numsSize -1; i > 0; i--) {
+        swap(nums, i, 0);
+        heapify(nums, i, 0);
+    }
+}
+
+int* twoSum(int* nums, int numsSize, int target, int* returnSize) {
+    int *ans = (int *)calloc(sizeof(int), 2);
+    (*returnSize) = 0;
+
+    //qsort(nums, numsSize, sizeof(int), comfunc);
+    heapSort(nums, numsSize);
+
+    for(int i = 0; i < numsSize; i++)
+        printf("%d ", nums[i]);
+    printf("\n");
+
+    return ans;
 }
 
 int main (void) {
